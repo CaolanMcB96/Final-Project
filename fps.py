@@ -4,6 +4,13 @@
 import time
 import serial
 import struct
+from pymongo import MongoClient
+
+#Database Connection and Setup
+client = MongoClient("mongodb://34.245.214.226:27017")
+db = client.fp
+dataset = db.lecturer
+
 
 STX1 = 0x55	# <1>
 STX2 = 0xAA
@@ -53,11 +60,11 @@ def sendCmd(cmd, param = 0):	# <5>
 	return recvPkg[3]
 
 def startScanner():
-	print("Open scanner communications")
+	#print("Open scanner communications")
 	sendCmd(CMD_OPEN)
 
 def stopScanner():
-	print("Close scanner communications")
+	#print("Close scanner communications")
 	sendCmd(CMD_CLOSE)
 	
 
@@ -108,59 +115,84 @@ def getEnrollCount():
 def removeAll():
 	return sendCmd(CMD_DELETE_ALL)
 
+def insertFingerPrint(printID, name):
+        result = dataset.insert_one({"fingerprintID" : printID, "name": name}) 
+
 def main():
-	print("Remove all identities from scanner")
-	startScanner()
+	opt = int(raw_input("Please select option:\n1. Enroll New Student\n2. Identify Fingerprint\n3. Remove All\n   Any other key to exit\n: "))
+        startScanner()
 	led()
-	print("Start enroll")
-	newID = getEnrollCount()
-	print(newID)
 
-	startEnroll(newID)
-	print("Press finger to start enroll")
-	waitForFinger(False)
-	if captureFinger() < 0:
-		enrollFail()
-		return
-	enroll(1)
-	print("Remove finger")
-	waitForFinger(True)
+	
+
+	if opt == 1:
+                startScanner()
+                led()
+                print("Start enroll")
+                newID = getEnrollCount()
+                print(newID)
+                fingerprintID = CMD_CAPTURE_FINGER
+
+                startEnroll(newID)
+                print("Press finger to start enroll")
+                waitForFinger(False)
+                if captureFinger() < 0:
+                        enrollFail()
+                        return
+                enroll(1)
+                print("Remove finger")
+                waitForFinger(True)
 
 
-	print("Press finger again")
-	waitForFinger(False)
-	if captureFinger() < 0:
-		enrollFail()
-		return
-	enroll(2)
-	print("Remove finger")
-	waitForFinger(True)
+                print("Press finger again")
+                waitForFinger(False)
+                if captureFinger() < 0:
+                        enrollFail()
+                        return
+                enroll(2)
+                print("Remove finger")
+                waitForFinger(True)
 
-	print("Press finger again")
-	waitForFinger(False)
-	if captureFinger() < 0:
-		enrollFail()
-		return
+                print("Press finger again")
+                waitForFinger(False)
+                if captureFinger() < 0:
+                        enrollFail()
+                        return
 
-	if enroll(3) != 0:
-		enrollFail()
-		return
+                if enroll(3) != 0:
+                        enrollFail()
+                        return
 
-	print("Remove finger")
-	waitForFinger(True)
+                print("Remove finger")
+                waitForFinger(True)
+                insertFingerPrint(fingerprintID, newID)
+                led(False)
+                
+                
+        elif opt == 2:
 
-	print("Press finger again to identify")	
-	waitForFinger(False)
-	if captureFinger() < 0:	# <10>
-		identFail()
-		return
-	ident = identifyUser()
-	if(ident >= 0 and ident < 200):	# <11>
-		print("Identity found: %d" % ident)
-	else:
-		print("User not found")
-	led(False)	
-	stopScanner()
+                startScanner()
+                led()
+                print("Press finger to identify")	
+                waitForFinger(False)
+                if captureFinger() < 0:	# <10>
+                        identFail()
+                        return
+                ident = identifyUser()
+                if(ident >= 0 and ident < 200):	# <11>
+                        print("Identity found: %d" % ident)
+                else:
+                        print("User not found")
+
+                led(False)
+        elif opt == 3:
+
+                print("All identities removed")
+                removeAll()
+
+        else:
+                led(False)	
+                stopScanner()
 
 if __name__ == "__main__":
 	try:
